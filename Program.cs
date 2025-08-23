@@ -3,20 +3,28 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Azure.AI.FormRecognizer.DocumentAnalysis;
-using Azure.Identity;
+using Azure;
 
 var host = new HostBuilder()
-    .ConfigureFunctionsWebApplication()
+    .ConfigureFunctionsWorkerDefaults()
     .ConfigureServices(services =>
     {
         services.AddApplicationInsightsTelemetryWorkerService();
         services.ConfigureFunctionsApplicationInsights();
 
-        // Add Document Intelligence client
+        // Add Document Intelligence client with API key authentication
         services.AddSingleton<DocumentAnalysisClient>(provider =>
         {
             var endpoint = Environment.GetEnvironmentVariable("DOCUMENT_INTELLIGENCE_ENDPOINT");
-            return new DocumentAnalysisClient(new Uri(endpoint), new DefaultAzureCredential());
+            var apiKey = Environment.GetEnvironmentVariable("DOCUMENT_INTELLIGENCE_API_KEY");
+
+            if (string.IsNullOrEmpty(endpoint))
+                throw new InvalidOperationException("DOCUMENT_INTELLIGENCE_ENDPOINT environment variable is required");
+
+            if (string.IsNullOrEmpty(apiKey))
+                throw new InvalidOperationException("DOCUMENT_INTELLIGENCE_API_KEY environment variable is required");
+
+            return new DocumentAnalysisClient(new Uri(endpoint), new AzureKeyCredential(apiKey));
         });
 
         // Add HTTP client
